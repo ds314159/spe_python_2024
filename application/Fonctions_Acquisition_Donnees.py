@@ -10,6 +10,7 @@ from Classes import *
 
 
 
+
 def charger_config_json(chemin):
     with open(chemin, 'r') as file:
         return json.load(file)
