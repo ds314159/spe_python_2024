@@ -22,6 +22,8 @@ class Interface:
         self.bouton_page_suivante_concordances = widgets.Button(description='Page Suivante', button_style='success')
         self.bouton_page_precedente_concordances = widgets.Button(description='Page Précédente', button_style='warning')
 
+        self.output_analyse = widgets.Output()
+
     def charger_corpus(self, fichier):
         """
         Charge un corpus depuis un fichier.
@@ -281,3 +283,114 @@ class Interface:
         bouton_diviser.on_click(on_bouton_diviser_clicked)
 
         return widgets.VBox([date_widget, bouton_diviser, output_division])
+
+
+
+    def construire_comparaison_frequences_mots_frequents(self):
+        style = {'description_width': 'initial'}
+        layout = widgets.Layout(width='400px')
+
+        nombre_mots_widget = widgets.IntSlider(value=10, min=5, max=50, step=1,
+                                               description='Nombre de mots à comparer:', style=style, layout=layout)
+        bouton_comparer = widgets.Button(description='Comparer et Visualiser', button_style='info', icon='bar-chart')
+        output_comparaison = widgets.Output()
+
+        def comparer_frequences_mots(corpus1, corpus2):
+            vocabulaire1 = corpus1.construire_vocabulaire()
+            vocabulaire2 = corpus2.construire_vocabulaire()
+
+            frequences1 = corpus1.calculer_frequences(vocabulaire1)
+            frequences2 = corpus2.calculer_frequences(vocabulaire2)
+
+            # Comparer les fréquences des mots les plus courants dans chaque corpus
+            mots_les_plus_frequents1 = frequences1.sum().sort_values(ascending=False).head(20)
+            mots_les_plus_frequents2 = frequences2.sum().sort_values(ascending=False).head(20)
+
+            # Retourne les mots les plus fréquents avec leurs fréquences pour chaque corpus
+            return mots_les_plus_frequents1, mots_les_plus_frequents2
+
+        def on_bouton_comparer_clicked(b):
+            with output_comparaison:
+                clear_output(wait=True)
+                if self.sous_corpus_courant_predate and self.sous_corpus_courant_postdate:
+                    nb_mots = nombre_mots_widget.value
+                    frequences1, frequences2 = comparer_frequences_mots(self.sous_corpus_courant_predate,
+                                                                        self.sous_corpus_courant_postdate)
+
+                    # Préparation des données pour le graphique
+                    mots = list(set(frequences1.index[:nb_mots]) | set(frequences2.index[:nb_mots]))
+                    valeurs1 = [frequences1.get(mot, 0) for mot in mots]
+                    valeurs2 = [frequences2.get(mot, 0) for mot in mots]
+
+                    # Création du graphique
+                    x = range(len(mots))
+                    plt.bar(x, valeurs1, width=0.4, label='Corpus Pré-Date', align='center')
+                    plt.bar(x, valeurs2, width=0.4, label='Corpus Post-Date', align='edge')
+                    plt.xlabel('Mots')
+                    plt.ylabel('Fréquence')
+                    plt.title('Comparaison des Fréquences des Mots')
+                    plt.xticks(x, mots, rotation='vertical')
+                    plt.legend()
+                    plt.show()
+                else:
+                    print("Les sous-corpus ne sont pas définis.")
+
+        bouton_comparer.on_click(on_bouton_comparer_clicked)
+
+        return widgets.VBox([nombre_mots_widget, bouton_comparer, output_comparaison])
+
+    def construire_comparaison_frequences_mots_specifiques(self):
+        style = {'description_width': 'initial'}
+        layout = widgets.Layout(width='400px')
+
+        mots_a_comparer_widget = widgets.Text(description='Mots à comparer (séparés par des virgules):', style=style,
+                                              layout=layout)
+        bouton_comparer = widgets.Button(description='Comparer et Visualiser', button_style='info', icon='bar-chart')
+        output_comparaison = widgets.Output()
+
+        def comparer_frequences_mots_specifiques(corpus1, corpus2, mots):
+            vocabulaire1 = corpus1.construire_vocabulaire()
+            vocabulaire2 = corpus2.construire_vocabulaire()
+
+            frequences1 = corpus1.calculer_frequences(vocabulaire1)
+            frequences2 = corpus2.calculer_frequences(vocabulaire2)
+
+            frequences_mots1 = {mot: frequences1.sum().get(mot, 0) for mot in mots}
+            frequences_mots2 = {mot: frequences2.sum().get(mot, 0) for mot in mots}
+
+            return frequences_mots1, frequences_mots2
+
+        def on_bouton_comparer_clicked(b):
+            with output_comparaison:
+                clear_output(wait=True)
+                mots = [mot.strip() for mot in mots_a_comparer_widget.value.split(',') if mot.strip()]
+
+                if len(mots) == 0 or len(mots) > 8:
+                    print("Veuillez entrer entre 1 et 8 mots.")
+                    return
+
+                if self.sous_corpus_courant_predate and self.sous_corpus_courant_postdate:
+                    frequences1, frequences2 = comparer_frequences_mots_specifiques(self.sous_corpus_courant_predate,
+                                                                                    self.sous_corpus_courant_postdate,
+                                                                                    mots)
+
+                    mots = list(set(frequences1.keys()) | set(frequences2.keys()))
+                    valeurs1 = [float(frequences1.get(mot, 0)) for mot in mots]
+                    valeurs2 = [float(frequences2.get(mot, 0)) for mot in mots]
+
+                    x = range(len(mots))
+                    plt.bar(x, valeurs1, width=0.4, label='Corpus Pré-Date', align='center')
+                    plt.bar(x, valeurs2, width=0.4, label='Corpus Post-Date', align='edge')
+                    plt.xlabel('Mots')
+                    plt.ylabel('Fréquence')
+                    plt.title('Comparaison des Fréquences des Mots Spécifiques')
+                    plt.xticks(x, mots, rotation='vertical')
+                    plt.legend()
+                    plt.show()
+                else:
+                    print("Les sous-corpus ne sont pas définis.")
+
+        bouton_comparer.on_click(on_bouton_comparer_clicked)
+
+        return widgets.VBox([mots_a_comparer_widget, bouton_comparer, output_comparaison])
+

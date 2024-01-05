@@ -2,11 +2,17 @@ from datetime import datetime
 import pandas as pd
 import pickle
 import re
+import nltk
+from nltk.corpus import stopwords
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 import matplotlib.pyplot as plt
 from wordcloud import WordCloud
 import copy
+from collections import defaultdict
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
 
 
 ########################################################################################################################
@@ -357,30 +363,24 @@ class Corpus:
     def nettoyer_texte(self, texte):
         """
         Nettoie le texte en appliquant plusieurs traitements.
-
-        Args:
-            texte (str): Le texte à nettoyer.
-
-        Returns:
-            str: Le texte nettoyé.
         """
         # s'assurer de bien transmettre une chaine de texte
         if not isinstance(texte, str):
             texte = str(texte)
-        # suppression des nombres
-        texte = re.sub(r'\d+', '', texte)
 
-        # Conversion en minuscules
-        texte = texte.lower()
-
-        # Remplacement des sauts de ligne par des espaces
-        texte = texte.replace('\n', ' ')
+        # suppression des nombres et conversion en minuscules
+        texte = re.sub(r'\d+', '', texte).lower()
 
         # Suppression de la ponctuation
-        # tous les caractères qui ne sont ni des lettres, ni des chiffres, ni des caractères de soulignement, ni des espaces (y compris les tabulations et les retours à la ligne). En pratique, cela revient principalement à sélectionner la ponctuation et les symboles spéciaux.
         texte = re.sub(r'[^\w\s]', '', texte)
 
-        return texte
+        # Supprimer les stopwords
+        stop_words = set(stopwords.words('english'))  # ne pas oublier de le spécifier
+        mots = texte.split()
+        mots_filtrés = [mot for mot in mots if mot not in stop_words]
+        texte_nettoye = ' '.join(mots_filtrés)
+
+        return texte_nettoye
 
     def construire_vocabulaire(self):
         """
@@ -560,3 +560,5 @@ class Corpus:
         copie_corpus.texte_concatene = None  # Reset et sera recalculé si nécessaire
 
         return copie_corpus
+
+    
