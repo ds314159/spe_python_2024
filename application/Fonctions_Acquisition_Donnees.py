@@ -6,27 +6,54 @@ from urllib.parse import quote_plus
 from datetime import datetime as dt
 import os
 import pandas as pd
-from Classes import *
+from Classes_Data import *
 
 
 
 
 def charger_config_json(chemin):
+    """
+    Charge une configuration depuis un fichier JSON.
+
+    :param chemin: Le chemin vers le fichier JSON.
+    :return: Un dictionnaire contenant la configuration chargée.
+    """
     with open(chemin, 'r') as file:
         return json.load(file)
 
 
 def initialiser_reddit(config):
+    """
+    Initialise une instance de l'API Reddit.
+
+    :param config: Dictionnaire contenant les clés de configuration pour Reddit.
+    :return: Une instance de l'API Reddit.
+    """
     return praw.Reddit(client_id=config['REDDIT']['client_id'],
                        client_secret=config['REDDIT']['client_secret'],
                        user_agent=config['REDDIT']['user_agent'])
 
 
 def recuperer_posts_reddit(reddit, mot_de_recherche, taille):
+    """
+    Récupère des posts de Reddit basés sur un mot-clé de recherche.
+
+    :param reddit: L'instance de l'API Reddit.
+    :param mot_de_recherche: Le mot-clé pour la recherche.
+    :param taille: Le nombre maximum de posts à récupérer.
+    :return: Une liste de posts Reddit.
+    """
     return reddit.subreddit('all').search(query=mot_de_recherche, limit=taille)
 
 
 def creer_dataframe_reddit(posts):
+    """
+    Crée un DataFrame à partir des posts Reddit.
+
+    :param posts: Une liste de posts Reddit.
+    :return: Un DataFrame contenant les données des posts.
+
+    """
     data_reddit = [{
         'id_post_reddit': post.id,
         'titre': post.title,
@@ -45,6 +72,13 @@ def creer_dataframe_reddit(posts):
 
 
 def recuperer_articles_arxiv(sequence_de_recherche, taille):
+    """
+    Récupère des articles depuis arXiv.
+
+    :param sequence_de_recherche: Le mot-clé pour la recherche.
+    :param taille: Le nombre maximum d'articles à récupérer.
+    :return: Un objet xmltodict contenant les articles récupérés.
+    """
     contenu = quote_plus(sequence_de_recherche) # contrairement à praw, dans xreddit il faut formater la sequence afin qu'il n'y ait pas d'espaces
     cible = 'all'
     cible_exclusion = 'ti'
@@ -55,6 +89,12 @@ def recuperer_articles_arxiv(sequence_de_recherche, taille):
 
 
 def creer_dataframe_arxiv(parsed_xml):
+    """
+    Crée un DataFrame à partir des données arXiv.
+
+    :param parsed_xml: Les données arXiv sous forme de dictionnaire XML.
+    :return: Un DataFrame contenant les données des articles arXiv.
+    """
     entries = parsed_xml['feed'].get('entry', [])
     if not isinstance(entries, list):  # Si un seul article, il ne sera pas sous forme de liste
         entries = [entries]
@@ -75,6 +115,14 @@ def creer_dataframe_arxiv(parsed_xml):
 
 
 def appliquer_recherche(nom_corpus, mot_de_recherche, taille_par_source):
+    """
+    Applique une recherche et crée un corpus à partir des résultats.
+
+    :param nom_corpus: Le nom à donner au corpus.
+    :param mot_de_recherche: Le mot-clé pour la recherche.
+    :param taille_par_source: Le nombre d'articles à récupérer par source.
+    :return: Un objet Corpus contenant les articles récupérés.
+    """
     config = charger_config_json('config.json')
     reddit = initialiser_reddit(config)
 
@@ -85,8 +133,14 @@ def appliquer_recherche(nom_corpus, mot_de_recherche, taille_par_source):
     df_arxiv = creer_dataframe_arxiv(parsed_xml)
 
     df_unified = pd.concat([df_arxiv, df_reddit], ignore_index=True, sort=False)
-    df_unified['nombre_commentaires'] = df_unified['nombre_commentaires'].fillna(0)
-    df_unified['co_auteurs'] = df_unified['co_auteurs'].fillna('Aucun')
+    if 'nombre_commentaires' not in df_unified.columns:
+        df_unified['nombre_commentaires'] = 0
+    else:
+        df_unified['nombre_commentaires'] = df_unified['nombre_commentaires'].fillna(0)
+    if 'co_auteurs' not in df_unified.columns:
+        df_unified['co_auteurs'] = 'Aucun'
+    else:
+        df_unified['co_auteurs'] = df_unified['co_auteurs'].fillna('Aucun').replace('', 'Aucun')
     df_unified['texte'] = df_unified['texte'].str.replace('\n', ' ').str.strip()
 
     fichier_corpus = f"data/{nom_corpus}.csv"

@@ -6,19 +6,47 @@ import os
 
 
 def charger_corpus(fichier):
-    # Utilisez ici votre méthode de chargement
+    """
+    Charge un corpus depuis un fichier.
+
+    :param fichier: Chemin du fichier contenant le corpus.
+    :return: Un objet Corpus chargé.
+
+    """
     return Corpus.load(fichier)
 
 def lister_noms_corpus(directory="data"):
+    """
+    Liste les noms des corpus disponibles dans un répertoire.
+
+    :param directory: Chemin du répertoire contenant les corpus, dans notre cas "./data".
+    :return: Une liste de noms de corpus.
+    """
     return [f for f in os.listdir(directory) if f.endswith('.pkl')]
 
 
 def creer_interface_recherche_corpus():
+    """
+    Crée une interface utilisateur pour la recherche de mots clefs dans des sources,
+    et le stockage des résultats sous forme d'un corpus nommé.
+
+    Cette interface comprend des champs pour entrer
+                               - le nom de la recherche (attribué comme nom au corpus crée après)
+                               - le(s) mot(s)-clé
+    et un curseur pour ajuster le nombre d'articles à récupérer de chaque source ( allant de 0 à 200)
+
+    ainsi qu'un bouton pour exécuter la recherche.
+    """
     # Style pour les descriptions des widgets et layout pour la largeur
     style = {'description_width': 'initial'}
     layout = widgets.Layout(width='500px')  # Définir une largeur de 500px
 
     def on_bouton_executer_clicked(b):
+        """
+        Gère l'événement de clic sur le bouton d'exécution.
+
+        :param b: Objet bouton
+        """
         with output:
             clear_output(wait=True)
             try:
@@ -30,6 +58,7 @@ def creer_interface_recherche_corpus():
                 display(resultat)
             except Exception as e:
                 print(f"Une erreur s'est produite: {e}")
+
 
 
 
@@ -84,6 +113,11 @@ def creer_interface_recherche_corpus():
 
 
 def creer_interface_chargement_corpus():
+    """
+    Crée une interface utilisateur pour charger un corpus existant.
+
+    Cette interface comprend un menu déroulant pour sélectionner un corpus et un bouton pour charger le corpus sélectionné.
+    """
     # Définition de la fonction appelée lorsque le bouton est cliqué
     def on_bouton_charger_clicked(b):
         with output:

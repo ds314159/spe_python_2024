@@ -4,9 +4,19 @@ import pickle
 import re
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
+import matplotlib.pyplot as plt
+from wordcloud import WordCloud
+import copy
+
 
 ########################################################################################################################
 class Author:
+    """
+    Classe représentant un auteur.
+
+    Cette classe stocke le nom de l'auteur, le nombre de documents qu'il a publiés,
+    et un dictionnaire des documents écrits par l'auteur.
+    """
 
     def __init__(self, name):
         self.name = name
@@ -26,6 +36,12 @@ class Author:
 ########################################################################################################################
 
 class Document:
+    """
+    Classe représentant un document.
+
+    Cette classe stocke les informations d'un document, y compris son titre, auteur,
+    date, URL, et le contenu textuel.
+    """
 
     def __init__(self, titre, auteur, date, url, texte):
         self.titre = titre
@@ -44,6 +60,14 @@ class Document:
 
 ########################################################################################################################
 class RedditDocument(Document):
+    """
+    Classe représentant un document Reddit.
+
+    Hérite de la classe mère Document
+
+    Cette classe stocke les informations d'un document Reddit, y compris son titre, auteur,
+    date, URL, et le contenu textuel. Mais aussi le nombre de commentaires ..
+    """
 
     def __init__(self, source, titre, auteur, date, url, texte, nb_commentaires):
         super().__init__(titre, auteur, date, url, texte)
@@ -66,6 +90,14 @@ class RedditDocument(Document):
 
 ########################################################################################################################
 class ArxivDocument(Document):
+    """
+      Classe représentant un document Arxiv.
+
+      Hérite de la classe mère Document
+
+      Cette classe stocke les informations d'un document Arxiv, y compris son titre, auteur,
+      date, URL, et le contenu textuel. Mais aussi les co-auteurs..
+      """
 
     def __init__(self, source, titre, auteur, date, url, texte, co_auteurs):
         super().__init__(titre, auteur, date, url, texte)
@@ -89,9 +121,28 @@ class ArxivDocument(Document):
 
 ########################################################################################################################
 class DocumentFactory:
+    """
+    Classe DocumentFactory utilisée pour la création d'instances de documents.
+
+    Cette classe suit le motif de conception 'Factory', permettant de créer des instances de différentes
+    classes de documents en fonction du type de source spécifié.
+    """
 
     @staticmethod
-    def create_document(source,titre, auteur, date, url, texte, co_auteurs, nb_commentaires):
+    def create_document(source, titre, auteur, date, url, texte, co_auteurs, nb_commentaires):
+        """
+        Crée une instance de document basée sur la source spécifiée.
+
+        :param source: La source du document (par exemple, 'reddit' ou 'arxiv').
+        :param titre: Le titre du document.
+        :param auteur: L'auteur du document.
+        :param date: La date de publication du document.
+        :param url: L'URL du document.
+        :param texte: Le contenu textuel du document.
+        :param co_auteurs: Les co-auteurs du document (utilisé uniquement pour les documents arXiv).
+        :param nb_commentaires: Le nombre de commentaires (utilisé uniquement pour les documents Reddit).
+        :return: Une instance de RedditDocument, ArxivDocument, ou lève une exception si la source est inconnue.
+        """
         if source == "reddit":
             return RedditDocument(source, titre, auteur, date, url, texte, nb_commentaires)
         elif source == "arxiv":
@@ -99,7 +150,15 @@ class DocumentFactory:
         else:
             raise ValueError(f"Type de document {source} non reconnu")
 
+
     def create_corpus(chemin_donnees_acquises, nom_corpus):
+        """
+        Crée un corpus à partir de données acquises.
+
+        :param chemin_donnees_acquises: Le chemin d'accès au fichier contenant les données acquises.
+        :param nom_corpus: Le nom à attribuer au corpus créé.
+        :return: Un objet Corpus contenant les documents acquis.
+        """
         # récupérer notre enregistrement corpus (l'ensemble de nos docs)
         docs = pd.read_csv(chemin_donnees_acquises, sep='\t')
 
@@ -120,6 +179,17 @@ class DocumentFactory:
 ########################################################################################################################
 
 class Corpus:
+    """
+    Classe représentant L'ensemble de documents récoltés suite à une recherche.
+
+    Le corpus est doté :
+                      - d'un dictionnaire des documents le composant
+                      - des auteurs les ayant écrits
+                      - d'un compteur du nombre de documents
+                      - d'un compteur du nombre d'auteurs
+                      - et aussi d'un sac de mots, qui sera l'ensemble des textes concaténés
+
+    """
 
     def __init__(self, nom):
         self.nom = nom
@@ -196,6 +266,23 @@ class Corpus:
         for doc in sorted_docs[:n]:
             print(f"Titre: {doc.titre}, Date: {doc.date}, Auteur: {doc.auteur}")
 
+    def newest_doc_date(self):
+        """
+        Retourne la date du document le plus récent du corpus.
+        """
+        if not self.id2doc:
+            return None
+
+        return max(doc.date for doc in self.id2doc.values())
+
+    def oldest_doc_date(self):
+        """
+        Retourne la date du document le plus ancien du corpus.
+        """
+        if not self.id2doc:
+            return None
+
+        return min(doc.date for doc in self.id2doc.values())
     def save(self, filename):
         """
         Sauvegarde l'objet Corpus dans un fichier.
@@ -232,23 +319,38 @@ class Corpus:
         return re.findall(mot_clef, self.texte_concatene)
 
     def concorde(self, expression, taille_contexte):
-        # s'ssurez-vous que les textes sont concaténés
+        """
+        Recherche les occurrences de l'expression dans le corpus, en fournissant un contexte autour de chaque occurrence.
+
+        Args:
+            expression (str): L'expression à rechercher dans le corpus.
+            taille_contexte (int): La taille du contexte autour de l'expression trouvée.
+
+        Returns:
+            DataFrame: Un DataFrame contenant les contextes gauche et droit de chaque occurrence de l'expression.
+        """
+        # concatener les textes
         self.concatener_textes()
 
         # Trouver toutes les occurrences de l'expression
-        pattern = re.compile(r'(.{{0,{0}}})({1})(.{{0,{0}}})'.format(taille_contexte, expression))
+        pattern = re.compile(
+            r'(.{{0,{}}})({})(.{{0,{}}})'.format(taille_contexte, re.escape(expression), taille_contexte))
         matches = pattern.finditer(self.texte_concatene)
 
-        # Créer un DataFrame pour stocker les résultats
-        concordances = pd.DataFrame(columns=['contexte gauche', 'motif trouvé', 'contexte droit'])
+        # Créer une liste pour stocker les résultats
+        concordances_list = []
 
-        # Remplir le DataFrame avec les résultats
+        # Remplir la liste avec les résultats
         for match in matches:
-            concordances = concordances.append({
+            concordance = {
                 'contexte gauche': match.group(1),
                 'motif trouvé': match.group(2),
                 'contexte droit': match.group(3)
-            }, ignore_index=True)
+            }
+            concordances_list.append(concordance)
+
+        # Convertir la liste en DataFrame
+        concordances = pd.DataFrame(concordances_list, columns=['contexte gauche', 'motif trouvé', 'contexte droit'])
 
         return concordances
 
@@ -305,6 +407,17 @@ class Corpus:
 
 
         return vocabulaire_dict
+
+    def nombre_mots_uniques(self):
+        """
+        Détermine le nombre total de mots uniques dans le corpus.
+        Soit la taille du dictionnaire
+
+        Returns:
+            int: Le nombre de mots uniques dans le corpus.
+        """
+        vocabulaire_dict = self.construire_vocabulaire()
+        return len(vocabulaire_dict)
 
     def calculer_frequences(self, vocabulaire_dict):
         # Créer un dictionnaire pour stocker les fréquences des termes dans chaque document
@@ -395,5 +508,55 @@ class Corpus:
 
         return resultats_ordonnes
 
+    def vision_d_ensemble(self, max_words = 200, min_word_length = 0, background_color = 'pink' ):
+        """
+        Présentation générale du corpus
+        Génère et affiche un nuage de mots pour le texte du corpus.
+        """
+        print(f"Le corpus de travail choisi est composé de : {self.ndoc} document(s).")
+        print(f"Ces documents ont été rédigés par : {self.naut} auteur(s)")
+        print(f"Le document le plus ancien a été rédigé le : {self.oldest_doc_date()}.")
+        print(f"Le document le plus récent a été rédigé le : {self.newest_doc_date()}.")
+        print(f"Le Corpus totalise  {self.nombre_mots_uniques()} mots uniques.")
+        print("Voici un nuage représentant Les mots par leur fréquence d'apparition dans le corpus")
+        # Concaténer tous les textes du corpus
+        full_text = ' '.join(str(doc.texte) for doc in self.id2doc.values() if str(doc.texte) != 'nan')
 
+        # Générer le nuage de mots
+        wordcloud = WordCloud(width=800, height=400, background_color= background_color, max_words=max_words, min_word_length = min_word_length).generate(full_text)
 
+        # Afficher le nuage de mots à l'aide de matplotlib
+        plt.figure(figsize=(10, 5))
+        plt.imshow(wordcloud, interpolation='bilinear')
+        plt.axis('off')
+        plt.show()
+
+    def copier_et_filtrer_avant_date(self, date_limite):
+        # Créer une copie profonde du corpus
+        copie_corpus = copy.deepcopy(self)
+
+        # Filtrer les documents pour ne garder que ceux avant la date limite
+        documents_filtrés = {titre: doc for titre, doc in copie_corpus.id2doc.items() if doc.date < date_limite}
+        copie_corpus.id2doc = documents_filtrés
+
+        # Ajuster les attributs de la copie
+        copie_corpus.ndoc = len(documents_filtrés)
+        copie_corpus.naut = len({doc.auteur for doc in documents_filtrés.values()})
+        copie_corpus.texte_concatene = None  # Reset et sera recalculé si nécessaire
+
+        return copie_corpus
+
+    def copier_et_filtrer_apres_date(self, date_limite):
+        # Créer une copie profonde du corpus
+        copie_corpus = copy.deepcopy(self)
+
+        # Filtrer les documents pour ne garder que ceux après la date limite
+        documents_filtrés = {titre: doc for titre, doc in copie_corpus.id2doc.items() if doc.date >= date_limite}
+        copie_corpus.id2doc = documents_filtrés
+
+        # Ajuster les attributs de la copie
+        copie_corpus.ndoc = len(documents_filtrés)
+        copie_corpus.naut = len({doc.auteur for doc in documents_filtrés.values()})
+        copie_corpus.texte_concatene = None  # Reset et sera recalculé si nécessaire
+
+        return copie_corpus
