@@ -56,12 +56,40 @@ class Document:
         self.url = url
         self.texte = texte
 
+        self.annotations = {}  # attribut pour stocker des annotations éventuelles de documents
+
 
     def afficher_infos(self):
         return print(f"Titre: {self.titre}\nAuteur: {self.auteur}\nDate: {self.date}\nURL: {self.url}\nTexte: {self.texte}")
 
     def __str__(self):
         return self.titre
+
+    def ajouter_annotation(self, id_annotation, texte, position = None, auteur=None, date=None):
+        """
+        Fonction pour rajouter des annotations à un document lors de la phase d'analyse
+        :param id_annotation:
+        :param texte:
+        :param position:
+        :param auteur:
+        :param date:
+
+        """
+        self.annotations[id_annotation] = {
+            'texte': texte,
+            'position': position,
+            'auteur': auteur,
+            'date': date
+        }
+
+    def afficher_annotations(self):
+        """
+        Fonction pour afficher les annotations d'un document
+        :return:
+        """
+        for id_annotation, info in self.annotations.items():
+            print(
+                f"ID: {id_annotation}, Texte: {info['texte']}, Position: {info['position']}, Auteur: {info['auteur']}, Date: {info['date']}")
 
 
 ########################################################################################################################
@@ -366,7 +394,7 @@ class Corpus:
         """
         # s'assurer de bien transmettre une chaine de texte
         if not isinstance(texte, str):
-            texte = str(texte)
+            texte = str(texte) if str(texte) != 'nan' else ''
 
         # suppression des nombres et conversion en minuscules
         texte = re.sub(r'\d+', '', texte).lower()
@@ -513,7 +541,7 @@ class Corpus:
         Présentation générale du corpus
         Génère et affiche un nuage de mots pour le texte du corpus.
         """
-        print(f"Le corpus de travail choisi est composé de : {self.ndoc} document(s).")
+        print(f"Ce Corpus est composé de : {self.ndoc} document(s).")
         print(f"Ces documents ont été rédigés par : {self.naut} auteur(s)")
         print(f"Le document le plus ancien a été rédigé le : {self.oldest_doc_date()}.")
         print(f"Le document le plus récent a été rédigé le : {self.newest_doc_date()}.")
@@ -561,4 +589,3 @@ class Corpus:
 
         return copie_corpus
 
-    

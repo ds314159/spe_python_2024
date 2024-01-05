@@ -2,11 +2,16 @@ import ipywidgets as widgets
 from IPython.display import display, clear_output
 from Fonctions_Acquisition_Donnees import *
 import os
+from collections import Counter
+import itertools
+import seaborn as sns
 
 class Interface:
     def __init__(self):
         # Lors du choix d'un corpus de travail, ce choix est affecté à l'attribut corpus_courant de la classe interface
         self.corpus_courant = None
+        # Nom dans le repertoire données du corpus courant
+        self.nom_corpus_courant = None
         # Sous corpus si choix de selection par date
         self.sous_corpus_courant_predate = None
         # Sous corpus si choix de selection par date
@@ -56,7 +61,11 @@ class Interface:
         """
         return [f for f in os.listdir(directory) if f.endswith('.pkl')]
 
-    def creer_interface_recherche_corpus(self):
+
+
+
+
+    def rechercher_documents_creer_corpus(self):
         """
         Crée une interface utilisateur pour construire un corpus à partir d'une séquence de recherche.
         """
@@ -70,7 +79,7 @@ class Interface:
                     if mot_cle_widget.value.strip() == '' or nom_corpus_widget.value.strip() == '':
                         print("Veuillez entrer un mot-clé de recherche et attribuer un nom au résultat de la recherche.")
                         return
-                    print(f"Recherche avec le mot-clé: '{mot_cle_widget.value}' pour {nombre_articles_widget.value} articles")
+                    print(f"Recherche avec le mot-clé: '{mot_cle_widget.value}' pour {nombre_articles_widget.value} articles par api, veuillez patienter svp ...")
                     resultat = appliquer_recherche(nom_corpus_widget.value, mot_cle_widget.value, nombre_articles_widget.value)
                     display(resultat)
                 except Exception as e:
@@ -78,7 +87,7 @@ class Interface:
 
         nom_corpus_widget = widgets.Text(description='Nom de la recherche:', style=style, layout=layout)
         mot_cle_widget = widgets.Text(description='Séquence de recherche:', style=style, layout=layout)
-        nombre_articles_widget = widgets.IntSlider(description='Volume extraction:', min=0, max=200, step=10, style=style, layout=layout)
+        nombre_articles_widget = widgets.IntSlider(description='Volume extraction:', min=0, max=200, value=100, step=10, style=style, layout=layout)
         bouton_executer = widgets.Button(description='Exécuter', button_style='info', tooltip='Cliquer ici pour lancer la recherche', icon='search')
         output = widgets.Output()
 
@@ -86,7 +95,10 @@ class Interface:
 
         return widgets.VBox([nom_corpus_widget, mot_cle_widget, nombre_articles_widget, bouton_executer, output])
 
-    def creer_interface_chargement_corpus(self):
+
+
+
+    def choisir_charger_corpus_de_travail(self):
         """
         Crée une interface utilisateur pour charger un corpus existant.
         """
@@ -95,13 +107,14 @@ class Interface:
                 clear_output(wait=True)
                 try:
                     nom_corpus = liste_corpus_widget.value
+                    self.nom_corpus_courant = nom_corpus[:-4]
                     chemin_complet = os.path.join("data", nom_corpus)
                     self.corpus_courant = self.charger_corpus(chemin_complet)
                     print(f"Corpus '{nom_corpus}' chargé avec succès.")
                 except Exception as e:
                     print(f"Une erreur s'est produite lors du chargement: {e}")
 
-        liste_corpus_widget = widgets.Select(options=self.lister_noms_corpus(), description='Choisir un corpus:', disabled=False)
+        liste_corpus_widget = widgets.Select(options=self.lister_noms_corpus(), description='Choisir :', disabled=False)
         bouton_charger = widgets.Button(description='Charger le Corpus', disabled=False)
         output = widgets.Output()
 
@@ -109,20 +122,20 @@ class Interface:
 
         return widgets.VBox([liste_corpus_widget, bouton_charger, output])
 
-    def construire_vision_ensemble_corpus(self):
+    def vision_d_ensemble_du_Corpus(self):
         """
         Crée une interface utilisateur pour configurer et afficher une vision d'ensemble du corpus.
         """
         style = {'description_width': 'initial'}
         layout = widgets.Layout(width='400px')
 
-        max_words_widget = widgets.IntSlider(value=200, min=10, max=500, step=10, description='Choisir le nombre de mots à afficher dans le nuage:', style=style,
+        max_words_widget = widgets.IntSlider(value=200, min=10, max=500, step=10, description='Nombre de mots à intègrer:', style=style,
                                              layout=layout)
-        min_word_length_widget = widgets.IntSlider(value=0, min=0, max=10, step=1, description="Choisir la taille minimale d'un mot:",
+        min_word_length_widget = widgets.IntSlider(value=0, min=0, max=10, step=1, description="Taille min d'un mot:",
                                                    style=style, layout=layout)
-        background_color_widget = widgets.ColorPicker(value='pink', description='Choisir la couleur de fond de votre nuage', style=style,
+        background_color_widget = widgets.ColorPicker(value='pink', description='Couleur de fond de votre nuage', style=style,
                                                       layout=layout)
-        bouton_vision_ensemble = widgets.Button(description='Afficher Vision d\'Ensemble', button_style='info',
+        bouton_vision_ensemble = widgets.Button(description='Afficher :', button_style='info',
                                                 tooltip='Cliquer pour visualiser', icon='eye')
         output = widgets.Output()
 
@@ -152,7 +165,7 @@ class Interface:
             if self.recherche_courante is not None:
                 # Affichage du texte de présentation
                 nombre_resultats = len(self.recherche_courante)
-                texte_explicatif = f"Les {nombre_resultats} résultats ayant le meilleur score par ordre décroissant de pertinence, appuyer sur le titre pour visualiser l'article:"
+                texte_explicatif = f"Les résultats ayant les meilleurs scores par ordre décroissant de pertinence :"
                 print(texte_explicatif)
                 for index, row in self.recherche_courante.iterrows():
                     label = widgets.Label(value=f"\nArticle d'index {index} et intitulé:")
@@ -175,7 +188,7 @@ class Interface:
             except Exception as e:
                 print(f"Erreur lors de l'affichage du document: {e}")
 
-    def construire_recherche_sequence_dans_corpus(self):
+    def moteur_de_recherche(self):
         """Crée une interface utilisateur pour effectuer une recherche dans le corpus courant."""
         style = {'description_width': 'initial'}
         layout = widgets.Layout(width='500px')
@@ -223,14 +236,14 @@ class Interface:
             if end < len(concordances):
                 display(self.bouton_page_suivante_concordances)
 
-    def construire_interface_concorde(self):
+    def concordancier(self):
         style = {'description_width': 'initial'}
         layout = widgets.Layout(width='500px')
 
         expression_widget = widgets.Text(description='Expression:', style=style, layout=layout)
-        contexte_widget = widgets.IntSlider(value=5, min=1, max=20, step=1, description='Taille du contexte:', style=style, layout=layout)
+        contexte_widget = widgets.IntSlider(value=30, min=20, max=100, step=1, description='Taille du contexte:', style=style, layout=layout)
         results_per_page_widget = widgets.IntSlider(value=10, min=1, max=100, step=1, description='Résultats par page:', style=style, layout=layout)
-        bouton_concorde = widgets.Button(description='Chercher Concordances', button_style='info', icon='search')
+        bouton_concorde = widgets.Button(description='Concorde', button_style='info', icon='search')
 
         def update_page(concordances, change):
             new_page = self.current_page_concordancier + change
@@ -256,7 +269,7 @@ class Interface:
 
         return widgets.VBox([expression_widget, contexte_widget, results_per_page_widget, bouton_concorde, self.output_concordances])
 
-    def diviser_et_afficher_sous_corpus(self):
+    def diviser_et_presenter_selon_date(self):
         style = {'description_width': 'initial'}
         layout = widgets.Layout(width='500px')
 
@@ -273,10 +286,12 @@ class Interface:
                     self.sous_corpus_courant_postdate = self.corpus_courant.copier_et_filtrer_apres_date(date_limite)
 
                     # Afficher les deux sous-corpus
-                    print("Sous-corpus avant la date limite:")
-                    self.sous_corpus_courant_predate.vision_d_ensemble()
-                    print("Sous-corpus après la date limite:")
-                    self.sous_corpus_courant_postdate.vision_d_ensemble()
+                    print("\033[1m" + "Sous-corpus avant la date limite: \n" + "\033[0m")
+
+                    self.sous_corpus_courant_predate.vision_d_ensemble(background_color = 'blue')
+
+                    print("\033[1m" + "Sous-corpus après la date limite: \n" + "\033[0m")
+                    self.sous_corpus_courant_postdate.vision_d_ensemble(background_color = 'green')
                 else:
                     print("Aucun corpus n'est chargé actuellement.")
 
@@ -286,13 +301,13 @@ class Interface:
 
 
 
-    def construire_comparaison_frequences_mots_frequents(self):
+    def comparer_occurences_mots_frequents(self):
         style = {'description_width': 'initial'}
         layout = widgets.Layout(width='400px')
 
         nombre_mots_widget = widgets.IntSlider(value=10, min=5, max=50, step=1,
                                                description='Nombre de mots à comparer:', style=style, layout=layout)
-        bouton_comparer = widgets.Button(description='Comparer et Visualiser', button_style='info', icon='bar-chart')
+        bouton_comparer = widgets.Button(description='Comparer', button_style='info', icon='bar-chart')
         output_comparaison = widgets.Output()
 
         def comparer_frequences_mots(corpus1, corpus2):
@@ -339,13 +354,13 @@ class Interface:
 
         return widgets.VBox([nombre_mots_widget, bouton_comparer, output_comparaison])
 
-    def construire_comparaison_frequences_mots_specifiques(self):
+    def comparer_occurences_liste_de_mots(self):
         style = {'description_width': 'initial'}
         layout = widgets.Layout(width='400px')
 
         mots_a_comparer_widget = widgets.Text(description='Mots à comparer (séparés par des virgules):', style=style,
                                               layout=layout)
-        bouton_comparer = widgets.Button(description='Comparer et Visualiser', button_style='info', icon='bar-chart')
+        bouton_comparer = widgets.Button(description='Comparer', button_style='info', icon='bar-chart')
         output_comparaison = widgets.Output()
 
         def comparer_frequences_mots_specifiques(corpus1, corpus2, mots):
@@ -393,4 +408,147 @@ class Interface:
         bouton_comparer.on_click(on_bouton_comparer_clicked)
 
         return widgets.VBox([mots_a_comparer_widget, bouton_comparer, output_comparaison])
+
+
+
+
+
+    def calculer_et_afficher_cooccurrences(self):
+        # Créer un widget pour la saisie des mots
+        mots_input = widgets.Text(description="Mots :")
+        bouton_calculer = widgets.Button(description="Calculer")
+        output = widgets.Output()
+
+        def on_calculer_clicked(b):
+            with output:
+                clear_output(wait=True)
+                mots = [mot.strip() for mot in mots_input.value.split(',')]
+                heatmap_data_predate = self.calculer_cooccurrences(self.sous_corpus_courant_predate, mots)
+                heatmap_data_postdate = self.calculer_cooccurrences(self.sous_corpus_courant_postdate, mots)
+
+                # Afficher les heatmaps
+                fig, axes = plt.subplots(1, 2, figsize=(15, 7))
+                sns.heatmap(heatmap_data_predate, annot=True, fmt="d", ax=axes[0])
+                axes[0].set_title("Co-Occurrences Pré-Date")
+                sns.heatmap(heatmap_data_postdate, annot=True, fmt="d", ax=axes[1])
+                axes[1].set_title("Co-Occurrences Post-Date")
+                plt.show()
+
+        bouton_calculer.on_click(on_calculer_clicked)
+        display(mots_input, bouton_calculer, output)
+
+    def calculer_cooccurrences(self, corpus, mots):
+        # Compter les co-occurrences dans le corpus
+        cooccurrences = Counter()
+        for doc in corpus.id2doc.values():
+            doc.texte = str(doc.texte) if str(doc.texte) != 'nan' else ''
+            texte = doc.texte.split()
+            for combinaison in itertools.combinations(mots, 2):
+                if all(mot in texte for mot in combinaison):
+                    cooccurrences[combinaison] += 1
+
+        # Créer un DataFrame pour la heatmap
+        df = pd.DataFrame(index=mots, columns=mots).fillna(0)
+        for (mot1, mot2), count in cooccurrences.items():
+            df.at[mot1, mot2] = count
+            df.at[mot2, mot1] = count
+        return df
+
+
+
+
+
+
+
+    def affichage_et_annotation(self):
+        style = {'description_width': 'initial'}
+        layout = widgets.Layout(width='500px')
+
+        # Sélection de l'index du document
+        index_document_widget = widgets.IntText(value=0, description='Index du Document:', style=style, layout=layout)
+        bouton_afficher = widgets.Button(description='Afficher le Document', style=style)
+        output_document = widgets.Output()
+
+        def on_afficher_clicked(b):
+            with output_document:
+                clear_output(wait=True)
+                index = index_document_widget.value
+                if index < len(self.corpus_courant.id2doc):
+                    doc = list(self.corpus_courant.id2doc.values())[index]
+                    print(f"Texte du document: {doc.texte}")
+                    self.interface_annotation(doc)
+                else:
+                    print("Index invalide.")
+
+        bouton_afficher.on_click(on_afficher_clicked)
+
+        return widgets.VBox([index_document_widget, bouton_afficher, output_document])
+
+    def interface_annotation(self, document):
+        # Définition du style et du layout pour les widgets
+        style = {'description_width': 'initial'}
+        layout = widgets.Layout(width='500px')
+
+        # Widgets pour entrer les détails de l'annotation
+        id_annotation_widget = widgets.IntText(description='ID de l\'annotation:', style=style, layout=layout)
+        texte_annotation_widget = widgets.Textarea(description='Texte de l\'annotation:', style=style, layout=layout)
+        position_annotation_widget = widgets.IntText(description='Position de l\'annotation:', style=style,
+                                                     layout=layout)
+        bouton_ajouter = widgets.Button(description='Ajouter Annotation', style=style)
+        bouton_afficher_annotations = widgets.Button(description='Afficher les Anciennes Annotations', style=style)
+        output_annotations = widgets.Output()
+
+        # Fonction pour gérer le clic sur le bouton d'ajout
+        def on_ajouter_clicked(b):
+            id_annotation = id_annotation_widget.value
+            texte = texte_annotation_widget.value
+            position = position_annotation_widget.value
+            document.ajouter_annotation(id_annotation, texte, position)
+            id_annotation_widget.value = len(document.annotations) + 1
+            texte_annotation_widget.value = ''
+            position_annotation_widget.value = 0
+            print("Annotation ajoutée.")
+
+        # Fonction pour gérer le clic sur le bouton d'affichage
+        def on_afficher_annotations_clicked(b):
+            with output_annotations:
+                clear_output(wait=True)
+                if document.annotations:
+                    document.afficher_annotations()
+                else:
+                    print("Pas d'anciennes annotations.")
+
+        bouton_ajouter.on_click(on_ajouter_clicked)
+        bouton_afficher_annotations.on_click(on_afficher_annotations_clicked)
+
+        # Afficher les widgets
+        display(id_annotation_widget, texte_annotation_widget, position_annotation_widget, bouton_ajouter,
+                bouton_afficher_annotations, output_annotations)
+
+
+
+
+
+
+
+
+    def sauvegarde_corpus(self):
+        bouton_sauvegarder = widgets.Button(description='Sauvegarder les Modifications',
+                                            style={'description_width': 'initial'})
+        output_sauvegarde = widgets.Output()
+
+        def on_sauvegarder_clicked(b):
+            with output_sauvegarde:
+                clear_output(wait=True)
+                try:
+                    nom_fichier = f"data/{self.nom_corpus_courant}.pkl"
+                    self.corpus_courant.save(nom_fichier)
+                    print("Corpus sauvegardé avec succès.")
+                except Exception as e:
+                    print(f"Erreur lors de la sauvegarde : {e}")
+
+        bouton_sauvegarder.on_click(on_sauvegarder_clicked)
+
+        return widgets.VBox([bouton_sauvegarder, output_sauvegarde])
+
 
