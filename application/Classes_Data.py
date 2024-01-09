@@ -56,7 +56,7 @@ class Document:
         self.url = url
         self.texte = texte
 
-        self.annotations = {}  # attribut pour stocker des annotations éventuelles de documents
+        self.annotations = {}  # attribut pour stocker des annotations éventuelles du document
 
 
     def afficher_infos(self):
@@ -393,8 +393,9 @@ class Corpus:
         Nettoie le texte en appliquant plusieurs traitements.
         """
         # s'assurer de bien transmettre une chaine de texte
-        if not isinstance(texte, str):
-            texte = str(texte) if str(texte) != 'nan' else ''
+
+        if texte is None or str(texte).lower() == 'nan':
+            return ''
 
         # suppression des nombres et conversion en minuscules
         texte = re.sub(r'\d+', '', texte).lower()

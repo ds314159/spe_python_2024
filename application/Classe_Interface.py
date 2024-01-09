@@ -533,7 +533,7 @@ class Interface:
 
 
     def sauvegarde_corpus(self):
-        bouton_sauvegarder = widgets.Button(description='Sauvegarder les Modifications',
+        bouton_sauvegarder = widgets.Button(description='Sauvegarder',
                                             style={'description_width': 'initial'})
         output_sauvegarde = widgets.Output()
 
